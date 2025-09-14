@@ -9,6 +9,27 @@ from ..auth import get_current_admin
 
 router = APIRouter(prefix="/products", tags=["products"])
 
+# Test endpoint without authentication to verify CORS
+@router.get("/test", summary="Test CORS")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {
+        "message": "CORS is working!",
+        "timestamp": datetime.now().isoformat(),
+        "status": "success"
+    }
+
+# Test endpoint with authentication to debug auth issues
+@router.get("/test-auth", summary="Test Authentication")
+async def test_auth(current_admin: dict = Depends(get_current_admin)):
+    """Test endpoint to verify authentication is working"""
+    return {
+        "message": "Authentication is working!",
+        "user": current_admin,
+        "timestamp": datetime.now().isoformat(),
+        "status": "success"
+    }
+
 
 @router.post("/", response_model=Product, summary="Create Product")
 async def create_product(
@@ -17,39 +38,55 @@ async def create_product(
     current_admin: dict = Depends(get_current_admin)
 ):
     """Create a new product"""
-    product_date = datetime.fromisoformat(product.date.replace('Z', '+00:00'))
-    
-    db_product = ProductDB(
-        name=product.name,
-        category=product.category,
-        unitPrice=product.unitPrice,
-        costPerUnit=product.costPerUnit,
-        quantity=product.quantity,
-        isAvailable=product.isAvailable,
-        isActive=product.isActive,
-        date=product_date
-    )
-    
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    
-    return Product(
-        id=str(db_product.id),
-        name=db_product.name,
-        category=db_product.category,
-        unitPrice=db_product.unitPrice,
-        costPerUnit=db_product.costPerUnit,
-        quantity=db_product.quantity,
-        isAvailable=db_product.isAvailable,
-        isActive=db_product.isActive,
-        date=product.date
-    )
+    try:
+        product_date = datetime.fromisoformat(product.date.replace('Z', '+00:00'))
+        
+        # Check if category column exists in database (temporary fix)
+        try:
+            # Try to create product without category
+            db_product = ProductDB(
+                name=product.name,
+                unitPrice=product.unitPrice,
+                costPerUnit=product.costPerUnit,
+                quantity=product.quantity,
+                isAvailable=product.isAvailable,
+                isActive=product.isActive,
+                date=product_date
+            )
+        except Exception as db_error:
+            if "category" in str(db_error) and "not-null constraint" in str(db_error):
+                # Database still has old schema with category column
+                raise HTTPException(
+                    status_code=500,
+                    detail="Database schema needs to be updated. Please run the migration script: python migrate_remove_category.py"
+                )
+            else:
+                raise db_error
+        
+        db.add(db_product)
+        db.commit()
+        db.refresh(db_product)
+        
+        return Product(
+            id=str(db_product.id),
+            name=db_product.name,
+            unitPrice=db_product.unitPrice,
+            costPerUnit=db_product.costPerUnit,
+            quantity=db_product.quantity,
+            isAvailable=db_product.isAvailable,
+            isActive=db_product.isActive,
+            date=product.date
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating product: {str(e)}"
+        )
 
 @router.get("/", response_model=List[Product], summary="Get All Products")
 async def get_products(
     date: Optional[str] = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
-    category: Optional[str] = Query(None, description="Filter by product category"),
     isActive: Optional[bool] = Query(None, description="Filter by active status"),
     isAvailable: Optional[bool] = Query(None, description="Filter by availability"),
     db: Session = Depends(get_db)
@@ -61,8 +98,6 @@ async def get_products(
     if date:
         filter_date = datetime.fromisoformat(date)
         query = query.filter(ProductDB.date == filter_date)
-    if category:
-        query = query.filter(ProductDB.category.ilike(f"%{category}%"))
     if isActive is not None:
         query = query.filter(ProductDB.isActive == isActive)
     if isAvailable is not None:
@@ -75,7 +110,6 @@ async def get_products(
         products.append(Product(
             id=str(product.id),
             name=product.name,
-            category=product.category,
             unitPrice=product.unitPrice,
             costPerUnit=product.costPerUnit,
             quantity=product.quantity,
@@ -96,7 +130,6 @@ async def get_product(product_id: str, db: Session = Depends(get_db)):
     return Product(
         id=str(db_product.id),
         name=db_product.name,
-        category=db_product.category,
         unitPrice=db_product.unitPrice,
         costPerUnit=db_product.costPerUnit,
         quantity=db_product.quantity,
@@ -116,7 +149,6 @@ async def get_products_by_date(date: str, db: Session = Depends(get_db)):
         products.append(Product(
             id=str(product.id),
             name=product.name,
-            category=product.category,
             unitPrice=product.unitPrice,
             costPerUnit=product.costPerUnit,
             quantity=product.quantity,
@@ -127,26 +159,6 @@ async def get_products_by_date(date: str, db: Session = Depends(get_db)):
     
     return products
 
-@router.get("/by-category/{category}", response_model=List[Product], summary="Get Products by Category")
-async def get_products_by_category(category: str, db: Session = Depends(get_db)):
-    """Get all products for a specific category"""
-    db_products = db.query(ProductDB).filter(ProductDB.category.ilike(f"%{category}%")).all()
-    
-    products = []
-    for product in db_products:
-        products.append(Product(
-            id=str(product.id),
-            name=product.name,
-            category=product.category,
-            unitPrice=product.unitPrice,
-            costPerUnit=product.costPerUnit,
-            quantity=product.quantity,
-            isAvailable=product.isAvailable,
-            isActive=product.isActive,
-            date=product.date.isoformat()
-        ))
-    
-    return products
 
 @router.patch("/{product_id}", response_model=Product, summary="Update Product")
 async def update_product(
@@ -173,7 +185,6 @@ async def update_product(
     return Product(
         id=str(db_product.id),
         name=db_product.name,
-        category=db_product.category,
         unitPrice=db_product.unitPrice,
         costPerUnit=db_product.costPerUnit,
         quantity=db_product.quantity,
@@ -201,7 +212,6 @@ async def toggle_product_availability(
     return Product(
         id=str(db_product.id),
         name=db_product.name,
-        category=db_product.category,
         unitPrice=db_product.unitPrice,
         costPerUnit=db_product.costPerUnit,
         quantity=db_product.quantity,

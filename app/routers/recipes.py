@@ -20,21 +20,20 @@ def calculate_ingredient_cost(ingredient_id: str, quantity: float, unit: str, db
         SupplyExpenseDB.category == "Supply"
     ).first()
     
-    if not supply or not supply.pricePerUnit:
+    if not supply:
         return 0.0
 
-    # Find supplies with the same name and unit, sorted by most recent
-    supplies_with_same_name = db.query(SupplyExpenseDB).filter(
+    # Find the most recent supply expense with the same item name and unit
+    most_recent_supply = db.query(SupplyExpenseDB).filter(
         SupplyExpenseDB.category == "Supply",
         SupplyExpenseDB.items == supply.items,
         SupplyExpenseDB.purchaseUnit == supply.purchaseUnit,
         SupplyExpenseDB.pricePerUnit.isnot(None)
-    ).order_by(SupplyExpenseDB.date.desc()).all()
+    ).order_by(SupplyExpenseDB.date.desc()).first()
     
-    if not supplies_with_same_name:
+    if not most_recent_supply or not most_recent_supply.pricePerUnit:
         return 0.0
     
-    most_recent_supply = supplies_with_same_name[0]
     base_price_per_unit = most_recent_supply.pricePerUnit
     
     # Convert units if necessary
@@ -51,14 +50,14 @@ def calculate_ingredient_cost(ingredient_id: str, quantity: float, unit: str, db
     
     return quantity * base_price_per_unit
 
-def calculate_recipe_costs(ingredients: List[RecipeIngredient], packaging_cost: float, overhead_cost: float, yield_quantity: float, db: Session):
+def calculate_recipe_costs(ingredients: List[RecipeIngredient], yield_quantity: float, db: Session):
     """Calculate total recipe costs"""
     ingredients_cost = sum(
         calculate_ingredient_cost(ingredient.ingredientId, ingredient.quantity, ingredient.unit, db)
         for ingredient in ingredients
     )
     
-    total_cost = ingredients_cost + packaging_cost + overhead_cost
+    total_cost = ingredients_cost
     cost_per_unit = total_cost / yield_quantity if yield_quantity > 0 else 0
     
     return {
@@ -77,8 +76,6 @@ async def create_recipe(
     # Calculate costs based on current ingredient prices
     costs = calculate_recipe_costs(
         recipe.ingredients, 
-        recipe.packagingCost, 
-        recipe.overheadCost, 
         recipe.yieldQuantity,
         db
     )
@@ -87,8 +84,6 @@ async def create_recipe(
         name=recipe.name,
         yieldQuantity=recipe.yieldQuantity,
         yieldUnitLabel=recipe.yieldUnitLabel,
-        packagingCost=recipe.packagingCost,
-        overheadCost=recipe.overheadCost,
         ingredients=json.dumps([ingredient.dict() for ingredient in recipe.ingredients]),
         totalCost=costs["totalCost"],
         costPerUnit=costs["costPerUnit"]
@@ -103,8 +98,6 @@ async def create_recipe(
         name=db_recipe.name,
         yieldQuantity=db_recipe.yieldQuantity,
         yieldUnitLabel=db_recipe.yieldUnitLabel,
-        packagingCost=db_recipe.packagingCost,
-        overheadCost=db_recipe.overheadCost,
         ingredients=[RecipeIngredient(**ing) for ing in json.loads(db_recipe.ingredients)],
         totalCost=db_recipe.totalCost,
         costPerUnit=db_recipe.costPerUnit
@@ -130,8 +123,6 @@ async def get_recipes(
             name=recipe.name,
             yieldQuantity=recipe.yieldQuantity,
             yieldUnitLabel=recipe.yieldUnitLabel,
-            packagingCost=recipe.packagingCost,
-            overheadCost=recipe.overheadCost,
             ingredients=[RecipeIngredient(**ing) for ing in json.loads(recipe.ingredients)],
             totalCost=recipe.totalCost,
             costPerUnit=recipe.costPerUnit
@@ -151,8 +142,6 @@ async def get_recipe(recipe_id: str, db: Session = Depends(get_db)):
         name=db_recipe.name,
         yieldQuantity=db_recipe.yieldQuantity,
         yieldUnitLabel=db_recipe.yieldUnitLabel,
-        packagingCost=db_recipe.packagingCost,
-        overheadCost=db_recipe.overheadCost,
         ingredients=[RecipeIngredient(**ing) for ing in json.loads(db_recipe.ingredients)],
         totalCost=db_recipe.totalCost,
         costPerUnit=db_recipe.costPerUnit
@@ -180,8 +169,6 @@ async def update_recipe(
         ingredients_list = [RecipeIngredient(**ing) for ing in json.loads(update_data["ingredients"])]
         costs = calculate_recipe_costs(
             ingredients_list,
-            update_data.get("packagingCost", db_recipe.packagingCost),
-            update_data.get("overheadCost", db_recipe.overheadCost),
             update_data.get("yieldQuantity", db_recipe.yieldQuantity),
             db
         )
@@ -199,8 +186,6 @@ async def update_recipe(
         name=db_recipe.name,
         yieldQuantity=db_recipe.yieldQuantity,
         yieldUnitLabel=db_recipe.yieldUnitLabel,
-        packagingCost=db_recipe.packagingCost,
-        overheadCost=db_recipe.overheadCost,
         ingredients=[RecipeIngredient(**ing) for ing in json.loads(db_recipe.ingredients)],
         totalCost=db_recipe.totalCost,
         costPerUnit=db_recipe.costPerUnit
@@ -236,8 +221,6 @@ async def recalculate_recipe_costs(
     ingredients_list = [RecipeIngredient(**ing) for ing in json.loads(db_recipe.ingredients)]
     costs = calculate_recipe_costs(
         ingredients_list,
-        db_recipe.packagingCost,
-        db_recipe.overheadCost,
         db_recipe.yieldQuantity,
         db
     )
@@ -246,6 +229,7 @@ async def recalculate_recipe_costs(
     db_recipe.totalCost = costs["totalCost"]
     db_recipe.costPerUnit = costs["costPerUnit"]
     db.commit()
+    db.refresh(db_recipe)
     
     return {
         "recipeId": recipe_id,

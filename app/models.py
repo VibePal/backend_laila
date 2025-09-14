@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -12,6 +12,14 @@ class ExpenseCategory(str, Enum):
     SUPPLY = "Supply"
     PACKAGING = "Packaging"
     OVERHEAD = "Overhead"
+
+class DeliveryType(str, Enum):
+    DELIVERY = "delivery"
+    PICKUP = "pickup"
+
+class PaymentType(str, Enum):
+    CASH = "cash"
+    MOMO = "momo"
 
 # Staff Models
 class StaffBase(BaseModel):
@@ -185,7 +193,6 @@ class MessageResponse(BaseModel):
 # Product Models
 class ProductBase(BaseModel):
     name: str
-    category: str
     unitPrice: float
     costPerUnit: float
     quantity: int
@@ -198,7 +205,6 @@ class ProductCreate(ProductBase):
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
-    category: Optional[str] = None
     unitPrice: Optional[float] = None
     costPerUnit: Optional[float] = None
     quantity: Optional[int] = None
@@ -221,8 +227,6 @@ class RecipeBase(BaseModel):
     name: str
     yieldQuantity: float
     yieldUnitLabel: str
-    packagingCost: float = 0.0
-    overheadCost: float = 0.0
     ingredients: List[RecipeIngredient]
     totalCost: float
     costPerUnit: float
@@ -234,8 +238,6 @@ class RecipeUpdate(BaseModel):
     name: Optional[str] = None
     yieldQuantity: Optional[float] = None
     yieldUnitLabel: Optional[str] = None
-    packagingCost: Optional[float] = None
-    overheadCost: Optional[float] = None
     ingredients: Optional[List[RecipeIngredient]] = None
     totalCost: Optional[float] = None
     costPerUnit: Optional[float] = None
@@ -245,9 +247,191 @@ class Recipe(RecipeBase):
     class Config:
         from_attributes = True
 
+# Order Models
+class CustomOrderDetails(BaseModel):
+    base_price: float
+    additional_price: float
+    colors: Optional[str] = None
+    inscription: Optional[str] = None
+
+class OrderItemBase(BaseModel):
+    product_id: str
+    product_name: str
+    quantity: int
+    unit_price: float
+    subtotal: float
+    is_custom_order: bool = False
+    is_free_ingredient: bool = False
+    custom_details: Optional[CustomOrderDetails] = None
+
+class OrderItemCreate(OrderItemBase):
+    pass
+
+class OrderItem(OrderItemBase):
+    id: str
+    class Config:
+        from_attributes = True
+
+class OrderBase(BaseModel):
+    customer_name: str
+    customer_contact: str
+    delivery_type: DeliveryType
+    hostel: Optional[str] = None
+    payment_type: PaymentType
+    delivery_fee: float = 0.0
+    special_notes: Optional[str] = None
+    items: List[OrderItemCreate]
+    total: float
+    order_date: str
+    order_time: str
+    created_by: str
+
+class OrderCreate(OrderBase):
+    pass
+
+class OrderUpdate(BaseModel):
+    customer_name: Optional[str] = None
+    customer_contact: Optional[str] = None
+    delivery_type: Optional[DeliveryType] = None
+    hostel: Optional[str] = None
+    payment_type: Optional[PaymentType] = None
+    delivery_fee: Optional[float] = None
+    special_notes: Optional[str] = None
+    total: Optional[float] = None
+    order_date: Optional[str] = None
+    order_time: Optional[str] = None
+
+class Order(OrderBase):
+    id: str
+    created_at: str
+    updated_at: str
+    items: List[OrderItem]
+    class Config:
+        from_attributes = True
+
 class PaginatedResponse(BaseModel):
     items: List[dict]
     total: int
     page: int
     size: int
     pages: int
+
+# ---------------------------
+# Overhead Costs
+# ---------------------------
+class OverheadCostBase(BaseModel):
+    category: str
+    description: str
+    amount: float
+    date: str
+    recurring: bool = False
+    frequency: Optional[str] = None
+    cost_type: str = "operational"  # "operational" or "packaging"
+
+class OverheadCostCreate(OverheadCostBase):
+    pass
+
+class OverheadCostUpdate(BaseModel):
+    category: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    date: Optional[str] = None
+    recurring: Optional[bool] = None
+    frequency: Optional[str] = None
+    cost_type: Optional[str] = None
+
+class OverheadCost(OverheadCostBase):
+    id: str
+    created_at: str
+    updated_at: str
+    
+    class Config:
+        from_attributes = True
+
+# ---------------------------
+# Sales Analytics
+# ---------------------------
+class SalesSummary(BaseModel):
+    total_orders: int
+    total_sales: float
+    total_revenue: float
+    date_range: str
+    period: str
+
+class PaymentBreakdown(BaseModel):
+    payment_method: str
+    amount: float
+    percentage: float
+    count: int
+
+class ProductBreakdown(BaseModel):
+    product_category: str
+    amount: float
+    percentage: float
+    count: int
+
+class SalesBreakdown(BaseModel):
+    payment_methods: List[PaymentBreakdown]
+    product_categories: List[ProductBreakdown]
+
+class SalesFilter(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    period: Optional[str] = "day"  # "day", "week", "month"
+    payment_method: Optional[str] = None
+    product_category: Optional[str] = None
+    order_type: Optional[str] = None  # "standard", "custom"
+
+class SalesExportRequest(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    period: Optional[str] = "day"
+    format: str = "csv"  # "csv", "json"
+    include_details: bool = True
+
+# ---------------------------
+# Financial Analytics
+# ---------------------------
+class FinancialSummary(BaseModel):
+    total_revenue: float
+    total_orders: int
+    supply_expenses: float
+    staff_payments: float
+    overhead_costs: float
+    total_expenses: float
+    net_profit: float
+    date_range: str
+    period: str
+
+class RevenueBreakdown(BaseModel):
+    total_revenue: float
+    total_orders: int
+    average_order_value: float
+    revenue_by_payment_method: Dict[str, float]
+    revenue_by_order_type: Dict[str, float]
+
+class ExpenseBreakdown(BaseModel):
+    supply_expenses: float
+    staff_payments: float
+    overhead_costs: float
+    total_expenses: float
+    expense_categories: Dict[str, float]
+
+class ProfitAnalysis(BaseModel):
+    net_profit: float
+    profit_margin: float
+    revenue: float
+    expenses: float
+    profitability_ratio: float
+
+class FinancialBreakdown(BaseModel):
+    revenue: RevenueBreakdown
+    expenses: ExpenseBreakdown
+    profit: ProfitAnalysis
+
+class FinancialFilter(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    period: Optional[str] = "day"  # "day", "week", "month"
+    include_overhead: bool = True
+    include_staff_payments: bool = True

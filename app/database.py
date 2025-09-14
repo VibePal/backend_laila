@@ -1,16 +1,17 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 import os
 from dotenv import load_dotenv
+# from sqlalchemy.pool import 
 
 load_dotenv()
 
 # Database URL from environment variable or default to SQLite
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Create engine
+# Create engine based on database type
 if DATABASE_URL and DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         DATABASE_URL,
@@ -20,7 +21,15 @@ if DATABASE_URL and DATABASE_URL.startswith("sqlite"):
 else:
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable is not set. Please check your .env file.")
-    engine = create_engine(DATABASE_URL)
+    # For PostgreSQL and other databases
+    if "postgresql" in DATABASE_URL:
+        engine = create_engine(
+            DATABASE_URL,
+            poolclass=NullPool,  # No connection pooling for serverless
+            connect_args={"sslmode": "require"}
+        )
+    else:
+        engine = create_engine(DATABASE_URL)
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

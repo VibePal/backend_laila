@@ -25,13 +25,12 @@ router = APIRouter(
 
 @router.post("/login", response_model=Token)
 async def login(
-    username: str = Form(...),
-    password: str = Form(...),
+    login_data: LoginRequest,
     db: Session = Depends(get_db)
 ):
     """Login staff member and return access token."""
     # Find staff by username
-    staff = db.query(StaffDB).filter(StaffDB.username == username).first()
+    staff = db.query(StaffDB).filter(StaffDB.username == login_data.username).first()
     
     if not staff:
         raise HTTPException(
@@ -41,7 +40,7 @@ async def login(
         )
     
     # Verify password
-    if not verify_password(password, staff.password):
+    if not verify_password(login_data.password, staff.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
