@@ -13,7 +13,7 @@ load_dotenv()
 # Security configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))  # 8 hours default
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -53,7 +53,8 @@ def verify_token(token: str) -> Optional[TokenData]:
             return None
         
         return TokenData(username=username, user_id=user_id, role=role)
-    except JWTError:
+    except JWTError as e:
+        print(f"JWT Error: {e}")  # Debug logging
         return None
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -83,5 +84,14 @@ async def get_current_admin(current_user: TokenData = Depends(get_current_user))
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
+        )
+    return current_user
+
+async def get_current_staff_or_admin(current_user: TokenData = Depends(get_current_user)):
+    """Get the current user (admin or staff)."""
+    if current_user.role not in ["admin", "staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff or admin access required"
         )
     return current_user

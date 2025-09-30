@@ -139,6 +139,7 @@ class Order(Base):
     order_date = Column(String, nullable=False)
     order_time = Column(String, nullable=False)
     created_by = Column(String, nullable=False)
+    edited_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

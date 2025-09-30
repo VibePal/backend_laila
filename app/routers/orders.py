@@ -6,7 +6,8 @@ from datetime import datetime
 
 from ..database import get_db
 from ..models_sqlalchemy import Order as OrderDB, OrderItem as OrderItemDB, Product as ProductDB, PackagingType as PackagingTypeDB
-from ..auth import get_current_admin
+from ..auth import get_current_admin, get_current_staff_or_admin
+from ..models import OrderUpdate
 
 router = APIRouter(
     prefix="/orders",
@@ -18,7 +19,7 @@ router = APIRouter(
 async def create_standard_order(
     order_data: dict,  # Accept raw JSON to match frontend structure exactly
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_staff_or_admin)
 ):
     """Create a standard order from the standard order form"""
     try:
@@ -38,7 +39,7 @@ async def create_standard_order(
             total=order_data["total"],
             order_date=order_data["orderDate"],
             order_time=order_data["orderTime"],
-            created_by=order_data["createdBy"]
+            created_by=current_user.user_id
         )
         
         db.add(db_order)
@@ -115,11 +116,21 @@ async def get_orders(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_staff_or_admin)
 ):
     """Get all orders with pagination"""
     try:
-        orders = db.query(OrderDB).offset(skip).limit(limit).all()
+        # Build query with role-based filtering
+        query = db.query(OrderDB)
+        
+        # Apply role-based filtering
+        if current_user.role == "staff":
+            # Staff users can only see orders they created
+            query = query.filter(OrderDB.created_by == current_user.user_id)
+        # Admin users can see all orders (no additional filter)
+        
+        # Apply pagination
+        orders = query.offset(skip).limit(limit).all()
         
         result = []
         for order in orders:
@@ -186,12 +197,21 @@ async def get_all_orders(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_staff_or_admin)
 ):
     """Get all orders (both standard and custom) with clear type indicators"""
     try:
-        # Get all orders from the orders table
-        orders = db.query(OrderDB).offset(skip).limit(limit).all()
+        # Build query with role-based filtering
+        query = db.query(OrderDB)
+        
+        # Apply role-based filtering
+        if current_user.role == "staff":
+            # Staff users can only see orders they created
+            query = query.filter(OrderDB.created_by == current_user.user_id)
+        # Admin users can see all orders (no additional filter)
+        
+        # Apply pagination
+        orders = query.offset(skip).limit(limit).all()
         
         result = []
         for order in orders:
@@ -266,4 +286,106 @@ async def get_all_orders(
         raise HTTPException(
             status_code=500,
             detail=f"Error fetching all orders: {str(e)}"
+        )
+
+@router.patch("/{order_id}", summary="Update Order")
+async def update_order(
+    order_id: str,
+    order_update: dict,  # Accept raw JSON to match frontend structure
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_staff_or_admin)
+):
+    """Update an existing order"""
+    try:
+        # Find the order
+        db_order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+        if not db_order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Check permissions - staff can only edit orders they created
+        if current_user.role == "staff" and db_order.created_by != current_user.user_id:
+            raise HTTPException(status_code=403, detail="Insufficient permissions to edit this order")
+        
+        # Update order fields
+        if "customerName" in order_update:
+            db_order.customer_name = order_update["customerName"]
+        if "customerContact" in order_update:
+            db_order.customer_contact = order_update["customerContact"]
+        if "deliveryType" in order_update:
+            db_order.delivery_type = order_update["deliveryType"]
+        if "hostel" in order_update:
+            db_order.hostel = order_update["hostel"]
+        if "paymentType" in order_update:
+            db_order.payment_type = order_update["paymentType"]
+        if "deliveryFee" in order_update:
+            db_order.delivery_fee = order_update["deliveryFee"]
+        if "specialNotes" in order_update:
+            db_order.special_notes = order_update["specialNotes"]
+        if "total" in order_update:
+            db_order.total = order_update["total"]
+        if "orderDate" in order_update:
+            db_order.order_date = order_update["orderDate"]
+        if "orderTime" in order_update:
+            db_order.order_time = order_update["orderTime"]
+        
+        # Set edited_by field
+        db_order.edited_by = current_user.username
+        db_order.updated_at = datetime.utcnow()
+        
+        # Update order items if provided
+        if "items" in order_update:
+            # Delete existing order items
+            db.query(OrderItemDB).filter(OrderItemDB.order_id == order_id).delete()
+            
+            # Add new order items
+            for item in order_update["items"]:
+                item_id = f"ITEM-{int(datetime.now().timestamp() * 1000)}-{uuid.uuid4().hex[:8]}"
+                
+                # Handle custom details for custom orders
+                custom_details_json = None
+                if item.get("is_custom_order") and item.get("custom_details"):
+                    custom_details = item["custom_details"]
+                    custom_details_json = json.dumps({
+                        "base_price": custom_details.get("base_price"),
+                        "additional_price": custom_details.get("additional_price"),
+                        "total_cost": custom_details.get("total_cost"),
+                        "colors": custom_details.get("colors"),
+                        "inscription": custom_details.get("inscription")
+                    })
+                
+                db_item = OrderItemDB(
+                    id=item_id,
+                    order_id=order_id,
+                    product_id=item["productId"],
+                    product_name=item["productName"],
+                    quantity=item["quantity"],
+                    unit_price=item["unitPrice"],
+                    subtotal=item["subtotal"],
+                    is_custom_order=item.get("is_custom_order", False),
+                    is_free_ingredient=item.get("is_free_ingredient", False),
+                    custom_details=custom_details_json
+                )
+                db.add(db_item)
+        
+        db.commit()
+        db.refresh(db_order)
+        
+        return {
+            "success": True,
+            "message": "Order updated successfully",
+            "data": {
+                "id": db_order.id,
+                "updatedAt": db_order.updated_at.isoformat(),
+                "editedBy": db_order.edited_by,
+                "total": db_order.total
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating order: {str(e)}"
         )

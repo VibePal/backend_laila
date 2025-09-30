@@ -116,6 +116,7 @@ class PackagingTypeUpdate(BaseModel):
 
 class PackagingType(PackagingTypeBase):
     id: str
+    isAvailable: bool = True
     class Config:
         from_attributes = True
 
@@ -184,6 +185,15 @@ class LoginRequest(BaseModel):
 class SignupRequest(BaseModel):
     username: str
     password: str
+
+class PasswordVerificationRequest(BaseModel):
+    password: str
+
+class PasswordVerificationResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[dict] = None
+    error: Optional[str] = None
 
 # Response Models
 class MessageResponse(BaseModel):
@@ -300,11 +310,18 @@ class OrderUpdate(BaseModel):
     total: Optional[float] = None
     order_date: Optional[str] = None
     order_time: Optional[str] = None
+    items: Optional[List[OrderItemCreate]] = None
+    additional_price: Optional[float] = None
+    colour: Optional[str] = None
+    inscription: Optional[str] = None
+    total_cost: Optional[float] = None
+    edited_by: Optional[str] = None
 
 class Order(OrderBase):
     id: str
     created_at: str
     updated_at: str
+    edited_by: Optional[str] = None
     items: List[OrderItem]
     class Config:
         from_attributes = True

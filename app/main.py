@@ -127,6 +127,14 @@ async def custom_orders_create_options():
 async def orders_options():
     return {"message": "CORS preflight for order operations successful"}
 
+@app.options("/api/v1/auth/verify-password")
+async def auth_verify_password_options():
+    return {"message": "CORS preflight for password verification successful"}
+
+@app.options("/api/v1/packaging-types/")
+async def packaging_types_options():
+    return {"message": "CORS preflight for packaging types successful"}
+
 # API info endpoint
 @app.get("/api/info")
 async def api_info():
@@ -136,6 +144,7 @@ async def api_info():
         "description": "A comprehensive staff management and payment system API",
         "endpoints": {
             "authentication": "/api/v1/auth",
+            "password_verification": "/api/v1/auth/verify-password",
             "staff": "/api/v1/staff",
             "payments": "/api/v1/payments",
             "suppliers": "/api/v1/suppliers",
@@ -146,6 +155,7 @@ async def api_info():
             "products": "/api/v1/products",
             "recipes": "/api/v1/recipes",
             "orders": "/api/v1/orders",
+            "order_update": "/api/v1/orders/{order_id}",
             "all_orders": "/api/v1/orders/all",
             "custom_orders": "/api/v1/custom-orders",
             "overhead_costs": "/api/v1/overhead-costs",

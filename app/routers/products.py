@@ -5,7 +5,7 @@ from datetime import datetime
 from ..models import Product, ProductCreate, ProductUpdate
 from ..models_sqlalchemy import Product as ProductDB
 from ..database import get_db
-from ..auth import get_current_admin
+from ..auth import get_current_admin, get_current_staff_or_admin
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -89,7 +89,8 @@ async def get_products(
     date: Optional[str] = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
     isActive: Optional[bool] = Query(None, description="Filter by active status"),
     isAvailable: Optional[bool] = Query(None, description="Filter by availability"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_staff_or_admin)
 ):
     """Get all products with optional filtering"""
     query = db.query(ProductDB)

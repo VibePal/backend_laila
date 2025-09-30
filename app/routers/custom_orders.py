@@ -6,7 +6,7 @@ from datetime import datetime
 
 from ..database import get_db
 from ..models_sqlalchemy import Order as OrderDB, OrderItem as OrderItemDB, Product as ProductDB, PackagingType as PackagingTypeDB
-from ..auth import get_current_admin
+from ..auth import get_current_admin, get_current_staff_or_admin
 
 router = APIRouter(
     prefix="/custom-orders",
@@ -18,7 +18,7 @@ router = APIRouter(
 async def create_custom_order(
     order_data: dict,  # Accept raw JSON to match frontend structure exactly
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_staff_or_admin)
 ):
     """Create a custom order from the custom order form"""
     try:
@@ -38,7 +38,7 @@ async def create_custom_order(
             total=order_data["total"],
             order_date=order_data["orderDate"],
             order_time=order_data["orderTime"],
-            created_by=order_data["createdBy"]
+            created_by=current_user.user_id
         )
         
         db.add(db_order)
@@ -120,12 +120,21 @@ async def get_custom_orders(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_admin: dict = Depends(get_current_admin)
+    current_user: dict = Depends(get_current_staff_or_admin)
 ):
     """Get all custom orders with pagination"""
     try:
-        # Get only custom orders (where at least one item is custom)
-        orders = db.query(OrderDB).join(OrderItemDB).filter(OrderItemDB.is_custom_order == True).offset(skip).limit(limit).all()
+        # Build query for custom orders with role-based filtering
+        query = db.query(OrderDB).join(OrderItemDB).filter(OrderItemDB.is_custom_order == True)
+        
+        # Apply role-based filtering
+        if current_user.role == "staff":
+            # Staff users can only see custom orders they created
+            query = query.filter(OrderDB.created_by == current_user.user_id)
+        # Admin users can see all custom orders (no additional filter)
+        
+        # Apply pagination
+        orders = query.offset(skip).limit(limit).all()
         
         result = []
         for order in orders:
