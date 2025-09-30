@@ -33,7 +33,8 @@ app.add_middleware(
         "https://localhost:3001",
         "https://localhost:8080", 
         "https://localhost:9001",
-        "*"  # Allow all origins for development
+        "https://laila-frontend-five.vercel.app"
+        
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
