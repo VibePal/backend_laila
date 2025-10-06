@@ -9,6 +9,7 @@ from . import models_sqlalchemy
 
 Base.metadata.create_all(bind=engine)
 
+# adding a comment here to trigger rebuild - Chudah
 # Load environment variables
 load_dotenv()
 
