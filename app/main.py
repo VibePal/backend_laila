@@ -198,4 +198,4 @@ async def setup_system():
     }
 
 # Export the app for Vercel
-handler = app
+# handler = app
