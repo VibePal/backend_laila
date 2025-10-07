@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
-from ..models import Product, ProductCreate, ProductUpdate
-from ..models_sqlalchemy import Product as ProductDB
-from ..database import get_db
-from ..auth import get_current_admin, get_current_staff_or_admin
+from app.models import Product, ProductCreate, ProductUpdate
+from app.models_sqlalchemy import Product as ProductDB
+from app.database import get_db
+from app.auth import get_current_admin, get_current_staff_or_admin
 
 router = APIRouter(prefix="/products", tags=["products"])
 

@@ -1,13 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import staff, payments, auth, suppliers, items, packaging_types, overhead_cost_types, supply_expenses, products, recipes, orders, custom_orders, overhead_costs, sales, financial
+from sqlalchemy.orm import Session
+from app.routers import staff, payments, auth, suppliers, items, packaging_types, overhead_cost_types, supply_expenses, products, recipes, orders, custom_orders, overhead_costs, sales, financial
 import os
 from dotenv import load_dotenv
 
-from .database import engine, Base
-from . import models_sqlalchemy
-
-Base.metadata.create_all(bind=engine)
+from app.database import engine, Base, get_db
+from app import models_sqlalchemy
 
 # adding a comment here to trigger rebuild - Chudah
 # Load environment variables
@@ -22,19 +21,22 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Base.metadata.create_all(bind=engine)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001", 
-        "http://localhost:8080",
-        "http://localhost:9001",
-        "https://localhost:3000",
-        "https://localhost:3001",
-        "https://localhost:8080", 
-        "https://localhost:9001",
-        "https://laila-frontend-five.vercel.app"
+        # "http://localhost:3000",
+        # "http://localhost:3001", 
+        # "http://localhost:8080",
+        # "http://localhost:9001",
+        # "https://localhost:3000",
+        # "https://localhost:3001",
+        # "https://localhost:8080", 
+        # "https://localhost:9001",
+        # "https://laila-frontend-five.vercel.app"
+        "*"
         
     ],
     allow_credentials=True,
@@ -99,7 +101,8 @@ async def cors_test():
             "http://localhost:3000",
             "http://localhost:3001", 
             "http://localhost:8080",
-            "http://localhost:9001"
+            "http://localhost:9001",
+            "https://laila-frontend-five.vercel.app"
         ]
     }
 
@@ -136,6 +139,25 @@ async def auth_verify_password_options():
 @app.options("/api/v1/packaging-types/")
 async def packaging_types_options():
     return {"message": "CORS preflight for packaging types successful"}
+
+# Test endpoint to verify CORS with POST
+@app.post("/api/v1/test-post")
+async def test_post():
+    return {"message": "POST test successful", "cors": "working"}
+
+@app.options("/api/v1/test-post")
+async def test_post_options():
+    return {"message": "CORS preflight for test POST successful"}
+
+# Test database connection
+@app.get("/api/v1/test-db")
+async def test_db(db: Session = Depends(get_db)):
+    try:
+        # Try to query the database
+        result = db.execute("SELECT 1").fetchone()
+        return {"message": "Database connection successful", "result": str(result)}
+    except Exception as e:
+        return {"message": "Database connection failed", "error": str(e)}
 
 # API info endpoint
 @app.get("/api/info")
@@ -174,3 +196,6 @@ async def setup_system():
         "message": "System setup endpoint",
         "instructions": "Use POST /api/v1/auth/setup-admin to create the first admin account"
     }
+
+# Export the app for Vercel
+handler = app

@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from ..models import PackagingType, PackagingTypeCreate, PackagingTypeUpdate
-from ..models_sqlalchemy import PackagingType as PackagingTypeDB
-from ..database import get_db
-from ..auth import get_current_staff_or_admin
+from app.models import PackagingType, PackagingTypeCreate, PackagingTypeUpdate
+from app.models_sqlalchemy import PackagingType as PackagingTypeDB
+from app.database import get_db
+from app.auth import get_current_staff_or_admin
 
 router = APIRouter(prefix="/packaging-types", tags=["packaging-types"])
 

@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from sqlalchemy.orm import Session
-from ..models import OverheadCostType, OverheadCostTypeCreate, OverheadCostTypeUpdate
-from ..models_sqlalchemy import OverheadCostType as OverheadCostTypeDB
-from ..database import get_db
-from ..auth import get_current_admin
+from app.models import OverheadCostType, OverheadCostTypeCreate, OverheadCostTypeUpdate
+from app.models_sqlalchemy import OverheadCostType as OverheadCostTypeDB
+from app.database import get_db
+from app.auth import get_current_admin
 
 router = APIRouter(prefix="/overhead-cost-types", tags=["overhead-cost-types"])
 

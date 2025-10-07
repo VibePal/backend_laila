@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from ..models import Staff, StaffCreate, StaffUpdate, MessageResponse, StaffRole
-from ..models_sqlalchemy import Staff as StaffDB
-from ..database import get_db
-from ..auth import get_current_user, get_password_hash
+from app.models import Staff, StaffCreate, StaffUpdate, MessageResponse, StaffRole
+from app.models_sqlalchemy import Staff as StaffDB
+from app.database import get_db
+from app.auth import get_current_user, get_password_hash
 from datetime import datetime
 
 router = APIRouter(

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Form
 from fastapi.security import OAuth2PasswordRequestForm
-from ..models import Token, LoginRequest, SignupRequest, Staff, StaffCreate, MessageResponse, StaffRole, PasswordVerificationRequest, PasswordVerificationResponse
-from ..auth import (
+from app.models import Token, LoginRequest, SignupRequest, Staff, StaffCreate, MessageResponse, StaffRole, PasswordVerificationRequest, PasswordVerificationResponse
+from app.auth import (
     get_current_user, 
     get_password_hash, 
     create_access_token, 
@@ -13,15 +13,14 @@ import uuid
 
 # Import database dependencies
 from sqlalchemy.orm import Session
-from ..database import get_db
-from ..models_sqlalchemy import Staff as StaffDB
+from app.database import get_db
+from app.models_sqlalchemy import Staff as StaffDB
 
 router = APIRouter(
     prefix="/auth",
     tags=["authentication"],
     responses={401: {"description": "Unauthorized"}},
 )
-
 
 @router.post("/login", response_model=Token)
 async def login(

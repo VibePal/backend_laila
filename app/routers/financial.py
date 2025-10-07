@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
-from ..database import get_db
-from ..models_sqlalchemy import (
+from app.database import get_db
+from app.models_sqlalchemy import (
     Order as OrderDB, 
     OrderItem as OrderItemDB, 
     Product as ProductDB,
@@ -12,7 +12,7 @@ from ..models_sqlalchemy import (
     StaffPayment as StaffPaymentDB,
     OverheadCost as OverheadCostDB
 )
-from ..models import (
+from app.models import (
     FinancialSummary, 
     RevenueBreakdown, 
     ExpenseBreakdown, 
@@ -20,7 +20,7 @@ from ..models import (
     FinancialBreakdown,
     FinancialFilter
 )
-from ..auth import get_current_admin
+from app.auth import get_current_admin
 
 router = APIRouter(
     prefix="/financial",

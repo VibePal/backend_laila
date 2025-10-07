@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import List
 from sqlalchemy.orm import Session
-from ..models import StaffPayment, StaffPaymentCreate, StaffPaymentUpdate, MessageResponse, PaginatedResponse
-from ..models_sqlalchemy import StaffPayment as StaffPaymentDB, Staff as StaffDB
-from ..database import get_db
-from ..auth import get_current_user
+from app.models import StaffPayment, StaffPaymentCreate, StaffPaymentUpdate, MessageResponse, PaginatedResponse
+from app.models_sqlalchemy import StaffPayment as StaffPaymentDB, Staff as StaffDB
+from app.database import get_db
+from app.auth import get_current_user
 from datetime import datetime
 
 router = APIRouter(

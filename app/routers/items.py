@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from sqlalchemy.orm import Session
-from ..models import Item, ItemCreate, ItemUpdate
-from ..models_sqlalchemy import Item as ItemDB
-from ..database import get_db
-from ..auth import get_current_admin
+from app.models import Item, ItemCreate, ItemUpdate
+from app.models_sqlalchemy import Item as ItemDB
+from app.database import get_db
+from app.auth import get_current_admin
 
 router = APIRouter(prefix="/items", tags=["items"])
 

@@ -3,10 +3,10 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 import json
-from ..models import Recipe, RecipeCreate, RecipeUpdate, RecipeIngredient, SupplyExpense
-from ..models_sqlalchemy import Recipe as RecipeDB, SupplyExpense as SupplyExpenseDB
-from ..database import get_db
-from ..auth import get_current_admin
+from app.models import Recipe, RecipeCreate, RecipeUpdate, RecipeIngredient, SupplyExpense
+from app.models_sqlalchemy import Recipe as RecipeDB, SupplyExpense as SupplyExpenseDB
+from app.database import get_db
+from app.auth import get_current_admin
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -40,12 +40,16 @@ def calculate_ingredient_cost(ingredient_id: str, quantity: float, unit: str, db
     if unit != most_recent_supply.purchaseUnit:
         purchase_unit = most_recent_supply.purchaseUnit
         if purchase_unit == 'kg' and unit == 'g':
+            # kg to g: divide by 1000 (1 kg = 1000 g, so price per g = price per kg / 1000)
             base_price_per_unit = base_price_per_unit / 1000
         elif purchase_unit == 'L' and unit == 'ml':
+            # L to ml: divide by 1000 (1 L = 1000 ml, so price per ml = price per L / 1000)
             base_price_per_unit = base_price_per_unit / 1000
         elif purchase_unit == 'g' and unit == 'kg':
+            # g to kg: multiply by 1000 (1 kg = 1000 g, so price per kg = price per g * 1000)
             base_price_per_unit = base_price_per_unit * 1000
         elif purchase_unit == 'ml' and unit == 'L':
+            # ml to L: multiply by 1000 (1 L = 1000 ml, so price per L = price per ml * 1000)
             base_price_per_unit = base_price_per_unit * 1000
     
     return quantity * base_price_per_unit

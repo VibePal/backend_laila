@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from sqlalchemy.orm import Session
-from ..models import Supplier, SupplierCreate, SupplierUpdate
-from ..models_sqlalchemy import Supplier as SupplierDB
-from ..database import get_db
-from ..auth import get_current_admin
+from app.models import Supplier, SupplierCreate, SupplierUpdate
+from app.models_sqlalchemy import Supplier as SupplierDB
+from app.database import get_db
+from app.auth import get_current_admin
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 

@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
-from ..models import SupplyExpense, SupplyExpenseCreate, SupplyExpenseUpdate, ExpenseCategory
-from ..models_sqlalchemy import SupplyExpense as SupplyExpenseDB
-from ..database import get_db
-from ..auth import get_current_admin
+from app.models import SupplyExpense, SupplyExpenseCreate, SupplyExpenseUpdate, ExpenseCategory
+from app.models_sqlalchemy import SupplyExpense as SupplyExpenseDB
+from app.database import get_db
+from app.auth import get_current_admin
 
 router = APIRouter(prefix="/supply-expenses", tags=["supply-expenses"])
 
